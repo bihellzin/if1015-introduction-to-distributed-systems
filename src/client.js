@@ -1,4 +1,5 @@
 const amqp = require("amqplib/callback_api");
+const { randomUUID } = require('crypto');
 
 amqp.connect("amqp://localhost", function (error0, connection) {
   if (error0) {
@@ -15,7 +16,7 @@ amqp.connect("amqp://localhost", function (error0, connection) {
       durable: true,
     });
 
-    const description = "X Tudo";
+    const description = `Pedido ${randomUUID()}`;
 
     channel.sendToQueue(queue, Buffer.from(description), {
       persistent: true,

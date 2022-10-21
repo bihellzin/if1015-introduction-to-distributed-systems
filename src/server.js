@@ -7,13 +7,13 @@ const server = new websocket.Server({
 
 const orders = [
   {
-    description: "X Bacon",
+    description: "Pedido 1",
   },
   {
-    description: "X Salada",
+    description: "Pedido 2",
   },
   {
-    description: "X Egg",
+    description: "Pedido 3",
   },
 ];
 
