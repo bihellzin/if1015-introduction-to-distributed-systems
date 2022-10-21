@@ -1,39 +1,42 @@
-const grpc = require('@grpc/grpc-js');
-const protoLoader = require('@grpc/proto-loader');
-const packageDef = protoLoader.loadSync('../protos/calculator.proto', {});
-
-const grpcObject = grpc.loadPackageDefinition(packageDef);
-const calculatorPackage = grpcObject.calculatorPackage;
+const grpc = require("@grpc/grpc-js");
+const protoLoader = require("@grpc/proto-loader");
 
 const server = new grpc.Server();
-server.bindAsync(
-  '0.0.0.0:42000',
-  grpc.ServerCredentials.createInsecure(),
-  (err, result) => !err ? server.start() : logger.error(err)
+
+const grpcObject = grpc.loadPackageDefinition(
+  protoLoader.loadSync("../protos/chat.proto", {
+    keepCase: true,
+    longs: String,
+    enums: String,
+    defaults: true,
+    oneofs: true,
+  })
 );
 
-server.addService(calculatorPackage.Calculator.service, {
-  "calculate": calculate
-});
+const chatPackage = grpcObject.chatPackage;
 
-function calculate(call, callback) {
-  const request = call.request;
-  const { operation, firstNumber, secondNumber } = request;
-  console.log(`resolving ${firstNumber} ${operation} ${secondNumber}`)
+const users = [];
 
-  const result = operations[operation](firstNumber, secondNumber);
-  console.log(`${firstNumber} ${operation} ${secondNumber} = ${result}`)
-  callback(null, {result});
+function join(call, callback) {
+  users.push(call);
+  notifyChat({ user: "Server", text: "new user joined ..." });
 }
 
-const add = (a ,b) => a + b;
-const sub = (a ,b) => a - b;
-const mul = (a ,b) => a * b;
-const div = (a ,b) => a / b;
-
-const operations = {
-  '+': add,
-  '-': sub,
-  'x': mul,
-  '/': div
+function send(call, callback) {
+  notifyChat(call.request);
 }
+
+function notifyChat(message) {
+  users.forEach((user) => {
+    user.write(message);
+  });
+}
+
+server.bindAsync(
+  "0.0.0.0:42000",
+  grpc.ServerCredentials.createInsecure(),
+  (err, result) => (!err ? server.start() : logger.error(err))
+);
+server.addService(chatPackage.Chat.service, { join: join, send: send });
+
+console.log("Server started");
