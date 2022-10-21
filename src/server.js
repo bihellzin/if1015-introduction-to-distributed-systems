@@ -1,39 +1,69 @@
-const grpc = require('@grpc/grpc-js');
-const protoLoader = require('@grpc/proto-loader');
-const packageDef = protoLoader.loadSync('../protos/calculator.proto', {});
+const amqp = require("amqplib/callback_api");
+const websocket = require("ws");
 
-const grpcObject = grpc.loadPackageDefinition(packageDef);
-const calculatorPackage = grpcObject.calculatorPackage;
-
-const server = new grpc.Server();
-server.bindAsync(
-  '0.0.0.0:42000',
-  grpc.ServerCredentials.createInsecure(),
-  (err, result) => !err ? server.start() : logger.error(err)
-);
-
-server.addService(calculatorPackage.Calculator.service, {
-  "calculate": calculate
+const server = new websocket.Server({
+  port: 4200,
 });
 
-function calculate(call, callback) {
-  const request = call.request;
-  const { operation, firstNumber, secondNumber } = request;
-  console.log(`resolving ${firstNumber} ${operation} ${secondNumber}`)
+const orders = [
+  {
+    description: "X Bacon",
+  },
+  {
+    description: "X Salada",
+  },
+  {
+    description: "X Egg",
+  },
+];
 
-  const result = operations[operation](firstNumber, secondNumber);
-  console.log(`${firstNumber} ${operation} ${secondNumber} = ${result}`)
-  callback(null, {result});
-}
+let connections = [];
 
-const add = (a ,b) => a + b;
-const sub = (a ,b) => a - b;
-const mul = (a ,b) => a * b;
-const div = (a ,b) => a / b;
+server.on("connection", (connection) => {
+  connections.push(connection);
+  connection.send(JSON.stringify(orders));
 
-const operations = {
-  '+': add,
-  '-': sub,
-  'x': mul,
-  '/': div
-}
+  connection.on("message", (msg) => {
+    orders.shift();
+    console.log(msg.toString());
+    connections.forEach((s) => s.send(JSON.stringify(orders)));
+  });
+
+  connection.on("close", () => {
+    connections = connections.filter((s) => s !== connection);
+  });
+
+  setInterval(() => {
+    connections.forEach((s) => s.send(JSON.stringify(orders)));
+  }, 2000);
+});
+
+amqp.connect("amqp://localhost", function (error0, connection) {
+  if (error0) {
+    throw error0;
+  }
+  connection.createChannel(function (error1, channel) {
+    if (error1) {
+      throw error1;
+    }
+
+    const queue = "orders";
+
+    channel.assertQueue(queue, {
+      durable: true,
+    });
+
+    channel.consume(
+      queue,
+      (msg) => {
+        console.log(`Novo pedido: ${msg.content.toString()}`);
+        orders.push({
+          description: msg.content.toString(),
+        });
+      },
+      {
+        noAck: true,
+      }
+    );
+  });
+});

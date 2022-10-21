@@ -1,0 +1,24 @@
+<html>
+  <head>
+    <script type="text/javascript">
+      const ws = new WebSocket("ws://localhost:4200");
+      ws.onopen = () => {
+        document.querySelector("#authorize").addEventListener("click", () => {
+          ws.send("Autorizar pedido");
+        });
+      };
+      ws.onmessage = (msg) => {
+        document.querySelector(
+          "#messages"
+        ).innerHTML = `<div>${msg.data}</div>`;
+      };
+    </script>
+  </head>
+  <body>
+    <h1>Pedidos</h1>
+    <div id="messages"></div>
+    <div style="margin-top: 30px">
+      <button id="authorize">Autorizar</button>
+    </div>
+  </body>
+</html>

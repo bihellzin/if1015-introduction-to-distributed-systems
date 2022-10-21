@@ -1,21 +1,29 @@
-const parseArgs = require('minimist');
-const grpc = require('@grpc/grpc-js');
-const protoLoader = require('@grpc/proto-loader');
-const packageDef = protoLoader.loadSync('../protos/calculator.proto', {});
+const amqp = require("amqplib/callback_api");
 
-const grpcObject = grpc.loadPackageDefinition(packageDef);
-const calculatorPackage = grpcObject.calculatorPackage;
+amqp.connect("amqp://localhost", function (error0, connection) {
+  if (error0) {
+    throw error0;
+  }
+  connection.createChannel(function (error1, channel) {
+    if (error1) {
+      throw error1;
+    }
 
-const client = new calculatorPackage.Calculator('localhost:42000', 
-grpc.credentials.createInsecure());
+    const queue = "orders";
 
-const argv = parseArgs(process.argv.slice(2))
-const [firstNumber, secondNumber, operation] = argv._;
+    channel.assertQueue(queue, {
+      durable: true,
+    });
 
-client.calculate({
-  firstNumber,
-  secondNumber,
-  operation
-}, (err, response) => {
-  console.log(response.result)
-})
+    const description = "X Tudo";
+
+    channel.sendToQueue(queue, Buffer.from(description), {
+      persistent: true,
+    });
+  });
+
+  setTimeout(() => {
+    connection.close();
+    process.exit(0);
+  }, 500);
+});
